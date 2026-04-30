@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Auth</title>
+  <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+</head>
+
+<body>
+
+<div class="container">
+
+  <h1 id="title">Create Account</h1>
+
+  <!-- SIGNUP -->
+  <div id="signupBox" class="form active">
+
+    <input id="username" placeholder="Username">
+    <input id="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Password">
+    <input id="phone" placeholder="Phone Number">
+
+    <select id="country"></select>
+    <select id="gender"></select>
+
+    <input type="date" id="dob">
+
+    <button class="btn-primary" onclick="signup()">Create Account</button>
+
+    <p class="link" onclick="goLogin()">Already have an account? Login</p>
+
+  </div>
+
+  <!-- LOGIN -->
+  <div id="loginBox" class="form">
+
+    <input id="loginEmail" placeholder="Email">
+    <input id="loginPassword" type="password" placeholder="Password">
+
+    <button class="btn-secondary" onclick="login()">Login</button>
+
+    <p class="link" onclick="goSignup()">Don't have an account? Sign up</p>
+
+  </div>
+
+</div>
+
+<script type="module" src="auth.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Auralis AI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <h1>Auralis AI</h1>
+    <p id="userInfo">Loading...</p>
+  </div>
+
+  <!-- CHAT PAGE -->
+  <div id="home" class="page">
+
+    <div class="card">
+
+      <div id="chatBox" class="chat-box"></div>
+
+      <div class="input-bar">
+        <button
+          onmousedown="startHoldRecord()"
+          onmouseup="stopHoldRecord()"
+        >🎤</button>
+
+        <input id="textInput" placeholder="Ask anything..." />
+
+        <button onclick="sendMessage()">➤</button>
+      </div>
+
+      <p id="status"></p>
+
+    </div>
+
+  </div>
+
+  <!-- HISTORY PAGE -->
+  <div id="history" class="page hidden">
+    <div class="card">
+      <h2>Chats</h2>
+
+      <button onclick="createNewChat()">➕ New Chat</button>
+
+      <div id="historyList"></div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="settings" class="page hidden">
+    <div class="card">
+      <h2>Settings</h2>
+      <button onclick="logout()">Logout</button>
+      <button onclick="window.location.href='https://paystack.shop/pay/yx96a922oo'">
+  💳 Upgrade to Pro
+</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- NAV -->
+<div class="nav">
+  <button onclick="openTab('home')">Chat</button>
+  <button onclick="openTab('history')">History</button>
+  <button onclick="openTab('settings')">Settings</button>
+</div>
+
+<script type="module" src="app.js"></script>
+
+</body>
+</html>

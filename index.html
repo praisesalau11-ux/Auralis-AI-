@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Auralis AI</title>
+  <link rel="stylesheet" href="style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+</head>
+
+<body>
+
+<div class="container">
+
+  <!-- BRAND -->
+  <div class="logo">Auralis AI</div>
+  <div class="subtitle">Ai Assistant • Smart Conversations</div>
+
+  <!-- CARD -->
+  <div class="card">
+
+    <h2>Welcome</h2>
+    <p style="margin-top:8px; opacity:0.7;">
+      Your personal AI assistant powered by voice and intelligence
+    </p>
+
+    <!-- BIG BUTTONS -->
+    <button class="btn-primary" onclick="goSignup()">Create Account</button>
+
+    <button class="btn-secondary" onclick="goLogin()">Login</button>
+
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    © 2026 Auralis AI
+  </div>
+
+</div>
+
+<script>
+function goSignup(){
+  window.location.href = "auth.html#signup";
+}
+
+function goLogin(){
+  window.location.href = "auth.html#login";
+}
+</script>
+
+</body>
+</html>

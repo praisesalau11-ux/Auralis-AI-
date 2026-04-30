@@ -1,0 +1,290 @@
+/* ================= RESET ================= */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
+}
+
+/* ================= BACKGROUND ================= */
+body {
+  background: radial-gradient(circle at top, #0f172a, #020617);
+  color: #e2e8f0;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+}
+
+/* ================= APP WRAPPER ================= */
+.container, .app {
+  width: 100%;
+  max-width: 520px;
+  padding: 24px;
+}
+
+/* ================= LOGO ================= */
+.logo {
+  font-size: 38px;
+  font-weight: 800;
+  text-align: center;
+  background: linear-gradient(90deg, #1E3A8A, #3b82f6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+  text-align: center;
+  margin-top: 6px;
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+/* ================= CARD ================= */
+.card {
+  margin-top: 25px;
+  padding: 26px;
+  border-radius: 26px;
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(30,58,138,0.25);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+}
+
+/* ================= HEADINGS ================= */
+h2 {
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+p {
+  text-align: center;
+  opacity: 0.7;
+  font-size: 14px;
+}
+
+/* ================= INPUT ================= */
+input, select {
+  width: 100%;
+  padding: 16px;
+  margin-top: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.06);
+  color: white;
+  outline: none;
+  font-size: 14px;
+}
+
+/* ================= BIG BUTTON SYSTEM ================= */
+button {
+  width: 100%;
+  padding: 22px;
+  margin-top: 18px;
+  border-radius: 40px;
+  border: none;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+/* PRIMARY BUTTON */
+.btn-primary {
+  background: #1E3A8A;
+  color: white;
+  box-shadow: 0 15px 35px rgba(30,58,138,0.5);
+}
+
+/* SECONDARY */
+.btn-secondary {
+  background: rgba(255,255,255,0.08);
+  color: #e2e8f0;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* DANGER */
+.btn-danger {
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  color: white;
+}
+
+/* BUTTON HOVER */
+button:hover {
+  transform: translateY(-2px);
+}
+
+/* ================= CHAT UI ================= */
+.chat-box {
+  height: 60vh;
+  overflow-y: auto;
+  margin-top: 15px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* MESSAGE BUBBLES */
+.msg {
+  max-width: 80%;
+  padding: 14px 16px;
+  border-radius: 20px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* USER */
+.user {
+  background: #1E3A8A;
+  color: white;
+  margin-left: auto;
+}
+
+/* AI */
+.ai {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(30,58,138,0.3);
+}
+
+/* ================= INPUT BAR ================= */
+.input-bar {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+/* TEXT INPUT INSIDE CHAT */
+.input-bar input {
+  flex: 1;
+  margin-top: 0;
+}
+
+/* CIRCULAR VOICE BUTTON */
+.input-bar button {
+  width: 65px;
+  height: 65px;
+  border-radius: 50%;
+  padding: 0;
+  background: #1E3A8A;
+  color: white;
+  font-size: 18px;
+  box-shadow: 0 10px 25px rgba(30,58,138,0.5);
+}
+
+/* ================= STATUS ================= */
+.status {
+  margin-top: 10px;
+  font-size: 13px;
+  opacity: 0.7;
+  text-align: center;
+}
+
+/* ================= NAVIGATION ================= */
+.nav {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(30,58,138,0.3);
+}
+
+.nav button {
+  flex: 1;
+  padding: 18px;
+  background: none;
+  color: #e2e8f0;
+  font-size: 13px;
+}
+
+/* ================= PAGE CONTROL ================= */
+.page {
+  display: block;
+}
+
+.hidden {
+  display: none;
+}
+
+/* ================= FOOTER ================= */
+.footer {
+  margin-top: 25px;
+  text-align: center;
+  font-size: 12px;
+  opacity: 0.6;
+}
+.form {
+  display: none;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s ease;
+}
+
+.form.active {
+  display: block;
+  opacity: 1;
+  transform: translateY(0);
+}
+.chat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  padding: 14px;
+  margin: 10px 0;
+
+  border-radius: 14px;
+
+  background: rgba(30,58,138,0.15);
+  border: 1px solid rgba(30,58,138,0.3);
+
+  color: white;
+  font-weight: 500;
+}
+
+.chat-actions button {
+  margin-left: 6px;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.edit-btn {
+  background: #1E3A8A;
+  color: white;
+}
+
+.delete-btn {
+  background: #ef4444;
+  color: white;
+}
+
+
+/* MESSAGE DELETE UI */
+.msg {
+  position: relative;
+}
+
+.msg:hover .delete-msg {
+  display: block;
+}
+
+.delete-msg {
+  display: none;
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  font-size: 12px;
+  background: red;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 3px 6px;
+  cursor: pointer;
+}
+.hidden {
+  display: none;
+}
