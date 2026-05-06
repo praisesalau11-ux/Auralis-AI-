@@ -17,7 +17,7 @@ import {
 import { countries } from "./countries.js";
 import { genders } from "./gender.js";
 
-// UI
+// ================= UI =================
 const signupBox = document.getElementById("signupBox");
 const loginBox = document.getElementById("loginBox");
 const title = document.getElementById("title");
@@ -84,10 +84,18 @@ window.signup = async function () {
     return;
   }
 
-  // 🔒 CHECK PHONE DUPLICATE
+  // 🔒 CHECK PHONE DUPLICATE (FIXED + DEBUGGABLE)
   try {
-    const q = query(collection(db, "users"), where("phone", "==", phone));
+    console.log("Checking phone:", phone);
+
+    const q = query(
+      collection(db, "users"),
+      where("phone", "==", phone)
+    );
+
     const snapshot = await getDocs(q);
+
+    console.log("Query success. Found:", snapshot.size);
 
     if (!snapshot.empty) {
       alert("❌ Phone number already exists");
@@ -95,16 +103,20 @@ window.signup = async function () {
     }
 
   } catch (err) {
-    console.error(err);
-    alert("Error checking phone");
+    console.error("🔥 PHONE CHECK ERROR:", err);
+    alert("Phone check failed: " + err.message);
     return;
   }
 
   const age = calculateAge(dob);
 
   try {
+    console.log("Creating user...");
+
     const userCred = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCred.user;
+
+    console.log("User created:", user.uid);
 
     await setDoc(doc(db, "users", user.uid), {
       username,
@@ -119,12 +131,12 @@ window.signup = async function () {
 
     alert("✅ Signup successful! You can now login.");
 
-    // 🔁 redirect to login
     window.location.hash = "#login";
 
   } catch (err) {
 
-    // 🔥 HANDLE EMAIL DUPLICATE
+    console.error("🔥 SIGNUP ERROR:", err);
+
     if (err.code === "auth/email-already-in-use") {
       alert("❌ Email already in use");
     } else if (err.code === "auth/weak-password") {
@@ -151,10 +163,10 @@ window.login = async function () {
 
     alert("✅ Login successful");
 
-    // 🔥 REDIRECT TO DASHBOARD
     window.location.href = "app.html";
 
   } catch (err) {
+    console.error("🔥 LOGIN ERROR:", err);
     alert("❌ " + err.message);
   }
 };
