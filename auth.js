@@ -8,10 +8,7 @@ import {
 import {
   doc,
   setDoc,
-  collection,
-  query,
-  where,
-  getDocs
+  getDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 import { countries } from "./countries.js";
@@ -25,7 +22,7 @@ const title = document.getElementById("title");
 const countrySelect = document.getElementById("country");
 const genderSelect = document.getElementById("gender");
 
-// ================= LOAD DROPDOWNS =================
+// ================= DROPDOWNS =================
 countries.forEach(c => {
   const option = document.createElement("option");
   option.value = c.name;
@@ -40,7 +37,7 @@ genders.forEach(g => {
   genderSelect.appendChild(option);
 });
 
-// ================= PAGE SWITCH =================
+// ================= NAV =================
 function showSignup() {
   signupBox.classList.add("active");
   loginBox.classList.remove("active");
@@ -54,18 +51,15 @@ function showLogin() {
 }
 
 function handleRoute() {
-  if (window.location.hash === "#login") {
-    showLogin();
-  } else {
-    showSignup();
-  }
+  if (window.location.hash === "#login") showLogin();
+  else showSignup();
 }
 
 handleRoute();
 window.addEventListener("hashchange", handleRoute);
 
-window.goLogin = () => window.location.hash = "#login";
-window.goSignup = () => window.location.hash = "#signup";
+window.goLogin = () => (window.location.hash = "#login");
+window.goSignup = () => (window.location.hash = "#signup");
 
 // ================= SIGNUP =================
 window.signup = async function () {
@@ -74,50 +68,29 @@ window.signup = async function () {
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value.trim();
   const phone = document.getElementById("phone").value.trim();
-  const country = countrySelect.value;
-  const gender = genderSelect.value;
   const dob = document.getElementById("dob").value;
 
-  // 🔒 VALIDATION
+  const country = countrySelect.value;
+  const gender = genderSelect.value;
+
   if (!username || !email || !password || !phone || !dob) {
-    alert("⚠️ Please fill all fields");
+    alert("⚠️ Fill all fields");
     return;
   }
 
-  // 🔒 CHECK PHONE DUPLICATE (FIXED + DEBUGGABLE)
   try {
-    console.log("Checking phone:", phone);
 
-    const q = query(
-      collection(db, "users"),
-      where("phone", "==", phone)
-    );
+    console.log("🚀 Creating user...");
 
-    const snapshot = await getDocs(q);
-
-    console.log("Query success. Found:", snapshot.size);
-
-    if (!snapshot.empty) {
-      alert("❌ Phone number already exists");
-      return;
-    }
-
-  } catch (err) {
-    console.error("🔥 PHONE CHECK ERROR:", err);
-    alert("Phone check failed: " + err.message);
-    return;
-  }
-
-  const age = calculateAge(dob);
-
-  try {
-    console.log("Creating user...");
-
+    // ================= CREATE USER =================
     const userCred = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCred.user;
 
-    console.log("User created:", user.uid);
+    const age = calculateAge(dob);
 
+    console.log("✅ UID:", user.uid);
+
+    // ================= SAVE USER =================
     await setDoc(doc(db, "users", user.uid), {
       username,
       email,
@@ -126,21 +99,29 @@ window.signup = async function () {
       gender,
       dob,
       age,
-      createdAt: new Date()
+      plan: "free",
+      usage: 0,
+      createdAt: Date.now()
     });
 
-    alert("✅ Signup successful! You can now login.");
+    // ================= SAVE PHONE INDEX (SAFE UNIQUE STORAGE) =================
+    // THIS replaces your broken query system
+    await setDoc(doc(db, "phones", phone), {
+      uid: user.uid,
+      email: email,
+      createdAt: Date.now()
+    });
 
+    alert("✅ Signup successful!");
     window.location.hash = "#login";
 
   } catch (err) {
-
     console.error("🔥 SIGNUP ERROR:", err);
 
     if (err.code === "auth/email-already-in-use") {
-      alert("❌ Email already in use");
+      alert("❌ Email already exists");
     } else if (err.code === "auth/weak-password") {
-      alert("❌ Password should be at least 6 characters");
+      alert("❌ Password too weak");
     } else {
       alert(err.message);
     }
@@ -159,10 +140,10 @@ window.login = async function () {
   }
 
   try {
+
     await signInWithEmailAndPassword(auth, email, password);
 
     alert("✅ Login successful");
-
     window.location.href = "app.html";
 
   } catch (err) {

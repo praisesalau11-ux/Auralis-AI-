@@ -15,19 +15,28 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // ================= CONFIG =================
-const SERVER = "https://auralis-ai-6dnq.onrender.com";
+const SERVER =
+  window.location.hostname === "localhost"
+    ? "http://localhost:3000"
+    : "https://auralis-ai-6dnq.onrender.com";
 
 // ================= STATE =================
 let currentUser = null;
 let currentChatId = null;
+
 let voiceMode = localStorage.getItem("voice") || "random";
 
 const cache = new Map();
+
 let memoryCache = "";
 let memoryTime = 0;
 
-// 📊 analytics tracking
-let dailyStats = {};
+let recognition = null;
+let isRecording = false;
+
+let dailyStats = JSON.parse(
+  localStorage.getItem("stats") || "{}"
+);
 
 // ================= UI =================
 const chatBox = document.getElementById("chatBox");
@@ -38,147 +47,306 @@ const analyticsBox = document.getElementById("analyticsBox");
 
 // ================= NAV =================
 window.openTab = function (tab) {
-  document.querySelectorAll(".page").forEach(p => p.style.display = "none");
-  document.getElementById(tab).style.display = "block";
 
-  if (tab === "analytics") loadAnalytics();
+  document.querySelectorAll(".page").forEach(page => {
+    page.classList.add("hidden");
+  });
+
+  document.getElementById(tab).classList.remove("hidden");
+
+  if (tab === "analytics") {
+    loadAnalytics();
+  }
 };
 
 // ================= AUTH =================
 onAuthStateChanged(auth, async (user) => {
-  if (!user) return (window.location.href = "auth.html#login");
+
+  if (!user) {
+    window.location.href = "auth.html#login";
+    return;
+  }
 
   currentUser = user;
 
   document.getElementById("userInfo").innerText = user.email;
 
-  loadChats();
-  getMemory();
+  await loadChats();
+  await getMemory();
 });
 
 // ================= MEMORY =================
 async function getMemory() {
+
   const now = Date.now();
 
   if (memoryCache && now - memoryTime < 20000) {
     return memoryCache;
   }
 
-  const q = query(
-    collection(db, "users", currentUser.uid, "history"),
-    orderBy("createdAt", "desc"),
-    limit(5)
-  );
+  try {
 
-  const snap = await getDocs(q);
+    const q = query(
+      collection(db, "users", currentUser.uid, "history"),
+      orderBy("createdAt", "desc"),
+      limit(5)
+    );
 
-  let mem = "";
-  snap.forEach(d => {
-    const x = d.data();
-    mem += `User:${x.user}\nAI:${x.ai}\n`;
-  });
+    const snap = await getDocs(q);
 
-  memoryCache = mem;
-  memoryTime = now;
+    let mem = "";
 
-  return mem;
+    snap.forEach(doc => {
+
+      const data = doc.data();
+
+      mem += `
+User: ${data.user}
+AI: ${data.ai}
+`;
+    });
+
+    memoryCache = mem;
+    memoryTime = now;
+
+    return mem;
+
+  } catch (err) {
+    console.log(err);
+    return "";
+  }
 }
 
 // ================= PROFILE =================
 function getProfile() {
-  return JSON.parse(localStorage.getItem("profile_" + currentUser.uid) || "{}");
+
+  return JSON.parse(
+    localStorage.getItem("profile_" + currentUser.uid) || "{}"
+  );
 }
 
-function updateProfile(msg) {
-  let p = getProfile();
+function updateProfile(message) {
 
-  if (msg.includes("my name is")) {
-    p.name = msg.split("my name is")[1]?.trim();
+  const profile = getProfile();
+
+  const lower = message.toLowerCase();
+
+  if (lower.includes("my name is")) {
+
+    profile.name =
+      message.split("my name is")[1]?.trim() || profile.name;
   }
 
-  if (msg.includes("I like")) {
-    p.likes = (p.likes || []).concat(msg.split("I like")[1]?.trim());
+  if (lower.includes("i like")) {
+
+    profile.likes = profile.likes || [];
+
+    const like =
+      message.split("I like")[1]?.trim();
+
+    if (like) {
+      profile.likes.push(like);
+    }
   }
 
-  localStorage.setItem("profile_" + currentUser.uid, JSON.stringify(p));
+  localStorage.setItem(
+    "profile_" + currentUser.uid,
+    JSON.stringify(profile)
+  );
 }
 
 // ================= RENDER =================
 function render(role, text) {
+
   const div = document.createElement("div");
-  div.className = "msg " + role;
+
+  div.className = `msg ${role}`;
+
   div.textContent = text;
 
   chatBox.appendChild(div);
-  chatBox.scrollTop = chatBox.scrollHeight;
+
+  requestAnimationFrame(() => {
+    chatBox.scrollTop = chatBox.scrollHeight;
+  });
+
+  return div;
 }
 
-// ================= SOUND (OPTIMIZED) =================
+// ================= FAST KEYBOARD SOUND =================
 let lastSound = 0;
 
+const keySound = new Audio(
+  "https://www.soundjay.com/keyboard/keyboard-1.mp3"
+);
+
+keySound.volume = 0.03;
+
 function playSound() {
+
   const now = Date.now();
+
   if (now - lastSound < 120) return;
 
   lastSound = now;
 
-  const audio = new Audio("https://www.soundjay.com/keyboard/keyboard-1.mp3");
-  audio.volume = 0.04;
-  audio.play().catch(() => {});
+  try {
+    keySound.currentTime = 0;
+    keySound.play().catch(() => {});
+  } catch {}
+}
+
+// ================= VOICE SAFE LOADER =================
+function getVoicesSafe() {
+
+  return new Promise(resolve => {
+
+    let voices = speechSynthesis.getVoices();
+
+    if (voices.length) {
+      resolve(voices);
+      return;
+    }
+
+    speechSynthesis.onvoiceschanged = () => {
+      voices = speechSynthesis.getVoices();
+      resolve(voices);
+    };
+  });
 }
 
 // ================= VOICE OUTPUT =================
-function speak(text) {
-  const utter = new SpeechSynthesisUtterance(text);
-  const voices = speechSynthesis.getVoices();
+async function speak(text) {
 
-  if (voiceMode === "random") {
-    utter.voice = voices[Math.floor(Math.random() * voices.length)];
+  try {
+
+    const voices = await getVoicesSafe();
+
+    const utter = new SpeechSynthesisUtterance(text);
+
+    if (voiceMode === "random") {
+
+      utter.voice =
+        voices[Math.floor(Math.random() * voices.length)];
+
+    } else if (voiceMode === "female") {
+
+      utter.voice =
+        voices.find(v =>
+          v.name.toLowerCase().includes("female")
+        ) || voices[0];
+
+    } else if (voiceMode === "male") {
+
+      utter.voice =
+        voices.find(v =>
+          v.name.toLowerCase().includes("male")
+        ) || voices[0];
+    }
+
+    utter.rate = 1;
+    utter.pitch = 1;
+
+    speechSynthesis.cancel();
+    speechSynthesis.speak(utter);
+
+  } catch (err) {
+    console.log(err);
   }
-
-  speechSynthesis.cancel();
-  speechSynthesis.speak(utter);
 }
 
-// ================= 🎤 VOICE INPUT (REAL SPEECH TO TEXT) =================
-let recognition;
-
+// ================= REAL VOICE INPUT =================
 if ("webkitSpeechRecognition" in window) {
+
   recognition = new webkitSpeechRecognition();
+
   recognition.continuous = false;
+  recognition.interimResults = true;
   recognition.lang = "en-US";
 
+  recognition.onstart = () => {
+
+    isRecording = true;
+
+    status.textContent = "🎤 Listening...";
+  };
+
+  recognition.onend = () => {
+
+    isRecording = false;
+
+    status.textContent = "";
+  };
+
+  recognition.onerror = (event) => {
+
+    console.log(event.error);
+
+    status.textContent = "Mic error";
+  };
+
   recognition.onresult = (event) => {
-    const text = event.results[0][0].transcript;
-    textInput.value = text;
-    sendMessage();
+
+    let transcript = "";
+
+    for (
+      let i = event.resultIndex;
+      i < event.results.length;
+      i++
+    ) {
+
+      transcript += event.results[i][0].transcript;
+    }
+
+    textInput.value = transcript;
+
+    const final =
+      event.results[event.results.length - 1].isFinal;
+
+    if (final) {
+      sendMessage();
+    }
   };
 }
 
+// ================= MIC CONTROLS =================
 window.startHoldRecord = function () {
-  if (recognition) recognition.start();
+
+  if (!recognition || isRecording) return;
+
+  recognition.start();
 };
 
 window.stopHoldRecord = function () {
-  if (recognition) recognition.stop();
+
+  if (!recognition || !isRecording) return;
+
+  recognition.stop();
 };
 
-// ================= AI STREAM (SMOOTH) =================
+// ================= STREAM AI =================
 async function askAI(message, box) {
 
   const key = message.toLowerCase();
 
   if (cache.has(key)) {
-    box.textContent = cache.get(key);
-    return cache.get(key);
+
+    const cached = cache.get(key);
+
+    box.textContent = cached;
+
+    return cached;
   }
 
   const memory = await getMemory();
+
   const profile = getProfile();
 
   const res = await fetch(`${SERVER}/chat`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json"
+    },
     body: JSON.stringify({
       message,
       memory,
@@ -187,28 +355,48 @@ async function askAI(message, box) {
     })
   });
 
+  if (!res.ok) {
+
+    const err = await res.text();
+
+    box.textContent = err;
+
+    return err;
+  }
+
   const reader = res.body.getReader();
+
   const decoder = new TextDecoder();
 
   let result = "";
   let buffer = "";
 
   while (true) {
+
     const { done, value } = await reader.read();
+
     if (done) break;
 
     buffer += decoder.decode(value);
 
-    if (buffer.length > 20) {
+    if (buffer.length > 15) {
+
       result += buffer;
+
       box.textContent = result + "▌";
+
       buffer = "";
 
       playSound();
+
+      requestAnimationFrame(() => {
+        chatBox.scrollTop = chatBox.scrollHeight;
+      });
     }
   }
 
   result += buffer;
+
   box.textContent = result;
 
   cache.set(key, result);
@@ -216,10 +404,11 @@ async function askAI(message, box) {
   return result;
 }
 
-// ================= SEND =================
+// ================= SEND MESSAGE =================
 window.sendMessage = async function () {
 
   const text = textInput.value.trim();
+
   if (!text) return;
 
   textInput.value = "";
@@ -228,92 +417,154 @@ window.sendMessage = async function () {
 
   render("user", text);
 
-  const box = document.createElement("div");
-  box.className = "msg ai";
-  box.textContent = "Thinking...";
-  chatBox.appendChild(box);
+  const aiBox = render("ai", "Thinking...");
 
-  const reply = await askAI(text, box);
+  status.textContent = "Auralis thinking...";
 
-  saveHistory(text, reply);
-  trackUsage(); // 📊 analytics
+  try {
 
-  speak(reply);
+    const reply = await askAI(text, aiBox);
 
-  status.textContent = "";
+    await saveHistory(text, reply);
+
+    trackUsage();
+
+    speak(reply);
+
+  } catch (err) {
+
+    aiBox.textContent = "Server error";
+
+    console.log(err);
+
+  } finally {
+
+    status.textContent = "";
+  }
 };
 
-// ================= HISTORY =================
+// ================= SAVE HISTORY =================
 async function saveHistory(user, ai) {
-  await addDoc(collection(db, "users", currentUser.uid, "history"), {
-    user,
-    ai,
-    createdAt: new Date()
-  });
+
+  try {
+
+    await addDoc(
+      collection(db, "users", currentUser.uid, "history"),
+      {
+        user,
+        ai,
+        createdAt: new Date()
+      }
+    );
+
+  } catch (err) {
+    console.log(err);
+  }
 }
+
+// ================= CREATE CHAT =================
+window.createNewChat = async function () {
+
+  try {
+
+    const ref = await addDoc(
+      collection(db, "users", currentUser.uid, "chats"),
+      {
+        name: "New Chat",
+        createdAt: new Date()
+      }
+    );
+
+    currentChatId = ref.id;
+
+    chatBox.innerHTML = "";
+
+    loadChats();
+
+  } catch (err) {
+    console.log(err);
+  }
+};
 
 // ================= LOAD CHATS =================
 async function loadChats() {
+
   historyList.innerHTML = "";
 
-  const q = query(
-    collection(db, "users", currentUser.uid, "chats"),
-    orderBy("createdAt", "desc")
-  );
+  try {
 
-  const snap = await getDocs(q);
+    const q = query(
+      collection(db, "users", currentUser.uid, "chats"),
+      orderBy("createdAt", "desc")
+    );
 
-  snap.forEach(d => {
-    const data = d.data();
-    const id = d.id;
+    const snap = await getDocs(q);
 
-    const div = document.createElement("div");
-    div.className = "msg ai";
+    snap.forEach(docSnap => {
 
-    div.innerHTML = `
-      ${data.name}
-      <button onclick="openChat('${id}')">Open</button>
-    `;
+      const data = docSnap.data();
 
-    historyList.appendChild(div);
-  });
+      const id = docSnap.id;
+
+      const div = document.createElement("div");
+
+      div.className = "chat-item";
+
+      div.innerHTML = `
+        <span>${data.name}</span>
+        <button onclick="openChat('${id}')">Open</button>
+      `;
+
+      historyList.appendChild(div);
+    });
+
+  } catch (err) {
+    console.log(err);
+  }
 }
 
-// ================= CHAT OPEN =================
+// ================= OPEN CHAT =================
 window.openChat = async function (id) {
+
   currentChatId = id;
+
   chatBox.innerHTML = "";
 
-  const q = query(
-    collection(db, "users", currentUser.uid, "chats", id, "messages"),
-    orderBy("createdAt", "asc")
-  );
+  try {
 
-  const snap = await getDocs(q);
+    const q = query(
+      collection(
+        db,
+        "users",
+        currentUser.uid,
+        "chats",
+        id,
+        "messages"
+      ),
+      orderBy("createdAt", "asc")
+    );
 
-  snap.forEach(m => {
-    const d = m.data();
-    render("user", d.user);
-    render("ai", d.ai);
-  });
+    const snap = await getDocs(q);
 
-  openTab("home");
+    snap.forEach(msg => {
+
+      const data = msg.data();
+
+      render("user", data.user);
+
+      render("ai", data.ai);
+    });
+
+    openTab("home");
+
+  } catch (err) {
+    console.log(err);
+  }
 };
 
-// ================= NEW CHAT =================
-window.createNewChat = async function () {
-  const ref = await addDoc(collection(db, "users", currentUser.uid, "chats"), {
-    name: "New Chat",
-    createdAt: new Date()
-  });
-
-  currentChatId = ref.id;
-  chatBox.innerHTML = "";
-  loadChats();
-};
-
-// ================= 📊 ANALYTICS =================
+// ================= ANALYTICS =================
 function trackUsage() {
+
   const today = new Date().toDateString();
 
   if (!dailyStats[today]) {
@@ -322,35 +573,73 @@ function trackUsage() {
 
   dailyStats[today]++;
 
-  localStorage.setItem("stats_" + currentUser.uid, JSON.stringify(dailyStats));
+  localStorage.setItem(
+    "stats",
+    JSON.stringify(dailyStats)
+  );
 }
 
 function loadAnalytics() {
-  const data = JSON.parse(localStorage.getItem("stats_" + currentUser.uid) || "{}");
 
-  const labels = Object.keys(data);
-  const values = Object.values(data);
+  if (!analyticsBox) return;
+
+  const stats = JSON.parse(
+    localStorage.getItem("stats") || "{}"
+  );
+
+  const labels = Object.keys(stats);
+
+  const values = Object.values(stats);
 
   analyticsBox.innerHTML = `
     <canvas id="chart"></canvas>
   `;
 
   setTimeout(() => {
-    new Chart(document.getElementById("chart"), {
+
+    const ctx = document
+      .getElementById("chart")
+      .getContext("2d");
+
+    new Chart(ctx, {
       type: "line",
       data: {
         labels,
-        datasets: [{
-          label: "Messages per Day",
-          data: values
-        }]
+        datasets: [
+          {
+            label: "Messages",
+            data: values
+          }
+        ]
+      },
+      options: {
+        responsive: true
       }
     });
+
   }, 200);
 }
 
+// ================= VOICE MODE =================
+window.setVoice = function (mode) {
+
+  voiceMode = mode;
+
+  localStorage.setItem("voice", mode);
+};
+
 // ================= LOGOUT =================
 window.logout = async function () {
+
   await signOut(auth);
+
   window.location.href = "auth.html#login";
 };
+
+// ================= ENTER SEND =================
+textInput.addEventListener("keydown", e => {
+
+  if (e.key === "Enter") {
+    sendMessage();
+  }
+});
