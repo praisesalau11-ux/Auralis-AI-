@@ -355,6 +355,12 @@ async function askAI(message, box) {
     })
   });
 
+if (!res.ok) {
+  const err = await res.text();
+  box.textContent = err;
+  return err;
+}
+
   if (!res.ok) {
 
     const err = await res.text();
