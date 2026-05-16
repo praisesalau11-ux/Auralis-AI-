@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Environment secrets (VERY IMPORTANT)
+.env
+
+# Local database file (optional but recommended)
+db.json
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Render / deployment cache (optional)
+.cache/
+dist/
+build/
