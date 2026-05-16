@@ -71,8 +71,12 @@ onAuthStateChanged(auth, async (user) => {
 
   document.getElementById("userInfo").innerText = user.email;
 
-  await loadChats();
-  await getMemory();
+  try {
+    await loadChats();
+    await getMemory();
+  } catch (err) {
+    console.log(err);
+  }
 });
 
 // ================= MEMORY =================
@@ -112,7 +116,7 @@ AI: ${data.ai}
     return mem;
 
   } catch (err) {
-    console.log(err);
+    console.log("MEMORY ERROR:", err);
     return "";
   }
 }
@@ -173,7 +177,7 @@ function render(role, text) {
   return div;
 }
 
-// ================= FAST KEYBOARD SOUND =================
+// ================= SOUND =================
 let lastSound = 0;
 
 const keySound = new Audio(
@@ -196,7 +200,7 @@ function playSound() {
   } catch {}
 }
 
-// ================= VOICE SAFE LOADER =================
+// ================= VOICE =================
 function getVoicesSafe() {
 
   return new Promise(resolve => {
@@ -215,7 +219,7 @@ function getVoicesSafe() {
   });
 }
 
-// ================= VOICE OUTPUT =================
+// ================= SPEAK =================
 async function speak(text) {
 
   try {
@@ -309,7 +313,7 @@ if ("webkitSpeechRecognition" in window) {
   };
 }
 
-// ================= MIC CONTROLS =================
+// ================= MIC =================
 window.startHoldRecord = function () {
 
   if (!recognition || isRecording) return;
@@ -324,7 +328,7 @@ window.stopHoldRecord = function () {
   recognition.stop();
 };
 
-// ================= STREAM AI =================
+// ================= AI =================
 async function askAI(message, box) {
 
   const key = message.toLowerCase();
@@ -342,75 +346,85 @@ async function askAI(message, box) {
 
   const profile = getProfile();
 
-  const res = await fetch(`${SERVER}/chat`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      message,
-      memory,
-      profile,
-      email: currentUser.email
-    })
-  });
+  try {
 
-if (!res.ok) {
-  const err = await res.text();
-  box.textContent = err;
-  return err;
-}
+    const res = await fetch(`${SERVER}/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        message,
+        memory,
+        profile,
+        email: currentUser.email
+      })
+    });
 
-  if (!res.ok) {
+    // ================= FIXED ERROR HANDLER =================
+    if (!res.ok) {
 
-    const err = await res.text();
+      const errText = await res.text();
 
-    box.textContent = err;
+      console.log("SERVER ERROR:", errText);
 
-    return err;
-  }
+      box.textContent = errText;
 
-  const reader = res.body.getReader();
-
-  const decoder = new TextDecoder();
-
-  let result = "";
-  let buffer = "";
-
-  while (true) {
-
-    const { done, value } = await reader.read();
-
-    if (done) break;
-
-    buffer += decoder.decode(value);
-
-    if (buffer.length > 15) {
-
-      result += buffer;
-
-      box.textContent = result + "▌";
-
-      buffer = "";
-
-      playSound();
-
-      requestAnimationFrame(() => {
-        chatBox.scrollTop = chatBox.scrollHeight;
-      });
+      return errText;
     }
+
+    // ================= STREAM =================
+    const reader = res.body.getReader();
+
+    const decoder = new TextDecoder();
+
+    let result = "";
+    let buffer = "";
+
+    while (true) {
+
+      const { done, value } = await reader.read();
+
+      if (done) break;
+
+      buffer += decoder.decode(value);
+
+      if (buffer.length > 15) {
+
+        result += buffer;
+
+        box.textContent = result + "▌";
+
+        buffer = "";
+
+        playSound();
+
+        requestAnimationFrame(() => {
+          chatBox.scrollTop = chatBox.scrollHeight;
+        });
+      }
+    }
+
+    result += buffer;
+
+    box.textContent = result;
+
+    cache.set(key, result);
+
+    return result;
+
+  } catch (err) {
+
+    console.log("FETCH ERROR:", err);
+
+    box.textContent =
+      "Cannot connect to server";
+
+    return "Server offline";
   }
-
-  result += buffer;
-
-  box.textContent = result;
-
-  cache.set(key, result);
-
-  return result;
 }
 
-// ================= SEND MESSAGE =================
+// ================= SEND =================
 window.sendMessage = async function () {
 
   const text = textInput.value.trim();
@@ -439,9 +453,9 @@ window.sendMessage = async function () {
 
   } catch (err) {
 
-    aiBox.textContent = "Server error";
-
     console.log(err);
+
+    aiBox.textContent = "Server error";
 
   } finally {
 
@@ -642,7 +656,7 @@ window.logout = async function () {
   window.location.href = "auth.html#login";
 };
 
-// ================= ENTER SEND =================
+// ================= ENTER =================
 textInput.addEventListener("keydown", e => {
 
   if (e.key === "Enter") {
