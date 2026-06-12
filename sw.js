@@ -1,7 +1,8 @@
-const CACHE_NAME = "auralis-cache-v1";
+const CACHE_NAME = "auralis-ai-v1";
 
 const urlsToCache = [
   "/",
+  "/index.html",
   "/app.html",
   "/auth.html",
   "/style.css",
@@ -9,22 +10,18 @@ const urlsToCache = [
   "/auth.js",
   "/firebase.js",
   "/manifest.json",
-  "/icon-192.png",
-  "/icon-512.png",
   "/countries.js",
   "/gender.js",
-  "/index.html"
+  "/icon-192.png",
+  "/icon-512.png"
 ];
 
-// ================= INSTALL =================
-self.addEventListener("install", event => {
-
+// Install Service Worker
+self.addEventListener("install", (event) => {
   console.log("Service Worker Installed");
 
   event.waitUntil(
-
-    caches.open(CACHE_NAME).then(cache => {
-
+    caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(urlsToCache);
     })
   );
@@ -32,22 +29,16 @@ self.addEventListener("install", event => {
   self.skipWaiting();
 });
 
-// ================= ACTIVATE =================
-self.addEventListener("activate", event => {
-
+// Activate Service Worker
+self.addEventListener("activate", (event) => {
   console.log("Service Worker Activated");
 
   event.waitUntil(
-
-    caches.keys().then(keys => {
-
+    caches.keys().then((cacheNames) => {
       return Promise.all(
-
-        keys.map(key => {
-
-          if (key !== CACHE_NAME) {
-
-            return caches.delete(key);
+        cacheNames.map((cache) => {
+          if (cache !== CACHE_NAME) {
+            return caches.delete(cache);
           }
         })
       );
@@ -57,42 +48,20 @@ self.addEventListener("activate", event => {
   self.clients.claim();
 });
 
-// ================= FETCH =================
-self.addEventListener("fetch", event => {
-
+// Fetch Requests
+self.addEventListener("fetch", (event) => {
   event.respondWith(
-
-    caches.match(event.request).then(response => {
-
-      // cache first
-      if (response) {
-        return response;
+    caches.match(event.request).then((cachedResponse) => {
+      if (cachedResponse) {
+        return cachedResponse;
       }
 
-      // fallback to network
       return fetch(event.request)
-        .then(networkResponse => {
-
-          return caches.open(CACHE_NAME)
-            .then(cache => {
-
-              cache.put(
-                event.request,
-                networkResponse.clone()
-              );
-
-              return networkResponse;
-            });
+        .then((networkResponse) => {
+          return networkResponse;
         })
         .catch(() => {
-
-          // offline fallback
-          if (
-            event.request.destination === "document"
-          ) {
-
-            return caches.match("/app.html");
-          }
+          return caches.match("/index.html");
         });
     })
   );
