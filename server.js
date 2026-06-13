@@ -369,7 +369,7 @@ app.post("/chat", async (req, res) => {
     // ================= OPENAI =================
     const completion =
       await openai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-5.5",
         stream: true,
         messages: [
           {
@@ -449,7 +449,7 @@ app.post("/title", async (req, res) => {
 
     const result =
       await openai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-5.5",
         messages: [
           {
             role: "system",
