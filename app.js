@@ -468,8 +468,35 @@ async function saveHistory(user, ai) {
 
   try {
 
+    if (!currentChatId) {
+      await createNewChat();
+    }
+
+    // Save in history collection
     await addDoc(
-      collection(db, "users", currentUser.uid, "history"),
+      collection(
+        db,
+        "users",
+        currentUser.uid,
+        "history"
+      ),
+      {
+        user,
+        ai,
+        createdAt: new Date()
+      }
+    );
+
+    // Save in chat messages
+    await addDoc(
+      collection(
+        db,
+        "users",
+        currentUser.uid,
+        "chats",
+        currentChatId,
+        "messages"
+      ),
       {
         user,
         ai,
@@ -478,7 +505,7 @@ async function saveHistory(user, ai) {
     );
 
   } catch (err) {
-    console.log(err);
+    console.error(err);
   }
 }
 
@@ -488,7 +515,12 @@ window.createNewChat = async function () {
   try {
 
     const ref = await addDoc(
-      collection(db, "users", currentUser.uid, "chats"),
+      collection(
+        db,
+        "users",
+        currentUser.uid,
+        "chats"
+      ),
       {
         name: "New Chat",
         createdAt: new Date()
@@ -499,10 +531,10 @@ window.createNewChat = async function () {
 
     chatBox.innerHTML = "";
 
-    loadChats();
+    await loadChats();
 
   } catch (err) {
-    console.log(err);
+    console.error(err);
   }
 };
 
@@ -514,7 +546,12 @@ async function loadChats() {
   try {
 
     const q = query(
-      collection(db, "users", currentUser.uid, "chats"),
+      collection(
+        db,
+        "users",
+        currentUser.uid,
+        "chats"
+      ),
       orderBy("createdAt", "desc")
     );
 
@@ -524,25 +561,24 @@ async function loadChats() {
 
       const data = docSnap.data();
 
-      const id = docSnap.id;
-
       const div = document.createElement("div");
 
       div.className = "chat-item";
 
       div.innerHTML = `
         <span>${data.name}</span>
-        <button onclick="openChat('${id}')">Open</button>
+        <button onclick="openChat('${docSnap.id}')">
+          Open
+        </button>
       `;
 
       historyList.appendChild(div);
     });
 
   } catch (err) {
-    console.log(err);
+    console.error(err);
   }
 }
-
 // ================= OPEN CHAT =================
 window.openChat = async function (id) {
 
@@ -566,19 +602,19 @@ window.openChat = async function (id) {
 
     const snap = await getDocs(q);
 
-    snap.forEach(msg => {
+    snap.forEach(docSnap => {
 
-      const data = msg.data();
+      const data = docSnap.data();
 
       render("user", data.user);
-
       render("ai", data.ai);
+
     });
 
     openTab("home");
 
   } catch (err) {
-    console.log(err);
+    console.error(err);
   }
 };
 
