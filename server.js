@@ -283,12 +283,13 @@ app.post("/chat", async (req, res) => {
 
   try {
 
-    const {
-      message,
-      email,
-      memory,
-      profile,
-      mode
+     const {
+     message,
+     email,
+     memory,
+     profile,
+     mode,
+     file
     } = req.body;
 
     if (!message) {
@@ -399,8 +400,10 @@ Style:
           },
           {
             role: "user",
-            content:
-              `
+            content:[
+           {
+           type:"text",
+           text:`
 MEMORY:
 ${memory || ""}
 
@@ -412,10 +415,18 @@ ${liveData}
 
 USER:
 ${message}
-              `
+`
+},
+...(file && file.type.startsWith("image/")
+? [{
+type:"image_url",
+image_url:{
+url:file.data
+         }
+         }]
+         : [])
+         ]
           }
-        ]
-      });
 
     // ================= STREAM =================
     for await (

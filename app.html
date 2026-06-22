@@ -57,18 +57,40 @@ if ("serviceWorker" in navigator) {
       <!-- INPUT -->
       <div class="input-bar">
 
-        <!-- 🎤 VOICE INPUT -->
-        <button 
-          class="mic-btn"
-          onmousedown="startHoldRecord()" 
-          onmouseup="stopHoldRecord()"
-          title="Hold to speak">
-          🎤
-        </button>
+<!-- 🎤 Voice -->
+<button
+  class="mic-btn"
+  onmousedown="startHoldRecord()"
+  onmouseup="stopHoldRecord()"
+  title="Hold to speak">
+🎤
+</button>
 
-        <input id="textInput" placeholder="Ask anything..." />
+<!-- 📎 Upload file -->
+<button onclick="pickFile()">
+📎
+</button>
 
-        <button onclick="sendMessage()">➤</button>
+<!-- 📷 Camera -->
+<button onclick="takePhoto()">
+📷
+</button>
+
+<input
+  type="file"
+  id="fileInput"
+  hidden
+  accept="image/*,.pdf,.txt"
+/>
+
+<input
+  id="textInput"
+  placeholder="Ask anything..."
+/>
+
+<button onclick="sendMessage()">
+➤
+</button>
 
       </div>
 
@@ -136,6 +158,23 @@ if ("serviceWorker" in navigator) {
   <button onclick="openTab('settings')">⚙️ Settings</button>
 
 </div>
+
+<script>
+
+if ("serviceWorker" in navigator) {
+
+  window.addEventListener("load", () => {
+
+    navigator.serviceWorker
+      .register("./sw.js")
+      .then(reg => console.log("SW Registered"))
+      .catch(err => console.log(err));
+
+  });
+
+}
+
+</script>
 
 <!-- ================= APP SCRIPT ================= -->
 <script type="module" src="app.js"></script>

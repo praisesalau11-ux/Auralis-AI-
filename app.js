@@ -44,6 +44,46 @@ const textInput = document.getElementById("textInput");
 const status = document.getElementById("status");
 const historyList = document.getElementById("historyList");
 const analyticsBox = document.getElementById("analyticsBox");
+const fileInput = document.getElementById("fileInput");
+
+let uploadedFile = null;
+
+window.pickFile = () => {
+  fileInput.click();
+};
+
+window.takePhoto = () => {
+  fileInput.accept = "image/*";
+  fileInput.capture = "environment";
+  fileInput.click();
+};
+
+fileInput.addEventListener("change", async e => {
+
+  const file = e.target.files[0];
+
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = () => {
+
+    uploadedFile = {
+      name: file.name,
+      type: file.type,
+      data: reader.result
+    };
+
+    render(
+      "user",
+      "📎 " + file.name
+    );
+
+  };
+
+  reader.readAsDataURL(file);
+
+});
 
 // ================= NAV =================
 window.openTab = function (tab) {
@@ -354,11 +394,12 @@ async function askAI(message, box) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        message,
-        memory,
-        profile,
-        email: currentUser.email
-      })
+    message,
+    memory,
+   profile,
+   email: currentUser.email,
+   file: uploadedFile
+   })
     });
 
     // ================= FIXED ERROR HANDLER =================
@@ -410,6 +451,8 @@ async function askAI(message, box) {
     box.textContent = result;
 
     cache.set(key, result);
+
+    uploadedFile = null;
 
     return result;
 
