@@ -368,15 +368,13 @@ app.post("/chat", async (req, res) => {
     );
 
     // ================= OPENAI =================
-    const completion =
-      await openai.chat.completions.create({
-        model: "gpt-5.5",
-        stream: true,
-        messages: [
-          {
-            role: "system",
-            content:
-              `
+    const completion = await openai.chat.completions.create({
+  model: "gpt-5.5",
+  stream: true,
+  messages: [
+    {
+      role: "system",
+      content: `
 You are Auralis AI, a modern AI assistant.
 
 Your goals:
@@ -395,15 +393,16 @@ Style:
 - Friendly and professional.
 - Direct and practical.
 - Avoid unnecessary filler.
-- Focus on helping the user solve problems quickly.
-              `
-          },
-          {
-            role: "user",
-            content:[
-           {
-           type:"text",
-           text:`
+- Focus on solving problems quickly.
+      `
+    },
+
+    {
+      role: "user",
+      content: [
+        {
+          type: "text",
+          text: `
 MEMORY:
 ${memory || ""}
 
@@ -415,18 +414,23 @@ ${liveData}
 
 USER:
 ${message}
-`
-},
-...(file && file.type.startsWith("image/")
-? [{
-type:"image_url",
-image_url:{
-url:file.data
-         }
-         }]
-         : [])
-         ]
-          }
+          `
+        },
+
+        ...(file && file.type?.startsWith("image/")
+          ? [
+              {
+                type: "image_url",
+                image_url: {
+                  url: file.data
+                }
+              }
+            ]
+          : [])
+      ]
+    }
+  ]
+});
 
     // ================= STREAM =================
     for await (

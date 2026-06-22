@@ -507,30 +507,24 @@ window.sendMessage = async function () {
 };
 
 // ================= SAVE HISTORY =================
+import { serverTimestamp } from "firebase/firestore";
+
 async function saveHistory(user, ai) {
-
   try {
-
     if (!currentChatId) {
-      await createNewChat();
+      const ref = await addDoc(
+        collection(db, "users", currentUser.uid, "chats"),
+        {
+          name: user.slice(0, 25),
+          createdAt: serverTimestamp()
+        }
+      );
+
+      currentChatId = ref.id;
+      await loadChats();
     }
 
-    // Save in history collection
-    await addDoc(
-      collection(
-        db,
-        "users",
-        currentUser.uid,
-        "history"
-      ),
-      {
-        user,
-        ai,
-        createdAt: new Date()
-      }
-    );
-
-    // Save in chat messages
+    // save message
     await addDoc(
       collection(
         db,
@@ -543,7 +537,7 @@ async function saveHistory(user, ai) {
       {
         user,
         ai,
-        createdAt: new Date()
+        createdAt: serverTimestamp()
       }
     );
 
@@ -553,27 +547,21 @@ async function saveHistory(user, ai) {
 }
 
 // ================= CREATE CHAT =================
+import { serverTimestamp } from "firebase/firestore";
+
 window.createNewChat = async function () {
-
   try {
-
     const ref = await addDoc(
-      collection(
-        db,
-        "users",
-        currentUser.uid,
-        "chats"
-      ),
+      collection(db, "users", currentUser.uid, "chats"),
       {
         name: "New Chat",
-        createdAt: new Date()
+        createdAt: serverTimestamp()
       }
     );
 
     currentChatId = ref.id;
 
     chatBox.innerHTML = "";
-
     await loadChats();
 
   } catch (err) {
@@ -583,36 +571,25 @@ window.createNewChat = async function () {
 
 // ================= LOAD CHATS =================
 async function loadChats() {
-
-  historyList.innerHTML = "";
-
   try {
+    historyList.innerHTML = "";
 
     const q = query(
-      collection(
-        db,
-        "users",
-        currentUser.uid,
-        "chats"
-      ),
+      collection(db, "users", currentUser.uid, "chats"),
       orderBy("createdAt", "desc")
     );
 
     const snap = await getDocs(q);
 
     snap.forEach(docSnap => {
-
       const data = docSnap.data();
 
       const div = document.createElement("div");
-
       div.className = "chat-item";
 
       div.innerHTML = `
-        <span>${data.name}</span>
-        <button onclick="openChat('${docSnap.id}')">
-          Open
-        </button>
+        <span>${data.name || "New Chat"}</span>
+        <button onclick="openChat('${docSnap.id}')">Open</button>
       `;
 
       historyList.appendChild(div);
@@ -624,34 +601,21 @@ async function loadChats() {
 }
 // ================= OPEN CHAT =================
 window.openChat = async function (id) {
-
-  currentChatId = id;
-
-  chatBox.innerHTML = "";
-
   try {
+    currentChatId = id;
+    chatBox.innerHTML = "";
 
     const q = query(
-      collection(
-        db,
-        "users",
-        currentUser.uid,
-        "chats",
-        id,
-        "messages"
-      ),
+      collection(db, "users", currentUser.uid, "chats", id, "messages"),
       orderBy("createdAt", "asc")
     );
 
     const snap = await getDocs(q);
 
     snap.forEach(docSnap => {
-
       const data = docSnap.data();
-
       render("user", data.user);
       render("ai", data.ai);
-
     });
 
     openTab("home");
