@@ -442,57 +442,54 @@ async function askAI(message, box) {
     }
 
     // ================= STREAM =================
-    const reader = res.body.getReader();
+   const reader = res.body.getReader();
 
-    const decoder = new TextDecoder();
+   const decoder = new TextDecoder("utf-8");
 
     let result = "";
-    let buffer = "";
 
-    while (true) {
+     while (true) {
 
-      const { done, value } = await reader.read();
+  const { done, value } = await reader.read();
 
-      if (done) break;
+  if (done) break;
 
-      buffer += decoder.decode(value, { stream: true });
+  const chunk = decoder.decode(value, {
+    stream: true
+  });
 
-      if (buffer.length > 15) {
+  result += chunk;
 
-        result += buffer;
+  box.textContent = result + "▌";
 
-        box.textContent = result + "▌";
+  playSound();
 
-        buffer = "";
+  requestAnimationFrame(() => {
+    chatBox.scrollTop = chatBox.scrollHeight;
+  });
 
-        playSound();
-
-        requestAnimationFrame(() => {
-          chatBox.scrollTop = chatBox.scrollHeight;
-        });
-      }
     }
 
-    result += buffer;
+// Flush any remaining bytes
+     result += decoder.decode();
 
-    box.textContent = result;
+     box.textContent = result;
 
-    cache.set(key, result);
+     cache.set(key, result);
 
-    uploadedFile = null;
-   fileInput.value = "";
-    return result;
+     uploadedFile = null;
+     fileInput.value = "";
+
+     return result;
 
   } catch (err) {
 
-    console.log("FETCH ERROR:", err);
+  console.error("FETCH ERROR:", err);
 
-    box.textContent =
-      "Cannot connect to server";
+  box.textContent = "Cannot connect to server";
 
-    return "Server offline";
+  return "Server offline";
   }
-}
 
 // ================= SEND =================
 window.sendMessage = async function () {
