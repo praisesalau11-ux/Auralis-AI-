@@ -134,7 +134,9 @@ app.get("/", (req, res) => {
 });
 
 // ================= USER =================
-app.get("/user/:email",res.setHeader("Cache-Control", "no-store"); (req, res) => {
+app.get("/user/:email", (req, res) => {
+
+  res.setHeader("Cache-Control", "no-store");
 
   try {
 
@@ -146,12 +148,14 @@ app.get("/user/:email",res.setHeader("Cache-Control", "no-store"); (req, res) =>
 
   } catch (err) {
 
-    console.log(err);
+    console.error(err);
 
     res.status(500).json({
       error: "User fetch failed"
     });
+
   }
+
 });
 
 // ================= PAYSTACK CHECKOUT =================
