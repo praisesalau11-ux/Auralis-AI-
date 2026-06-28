@@ -1,182 +1,235 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Auralis AI</title>
 
-  <link rel="stylesheet" href="style.css"/>
-  <link rel="manifest" href="manifest.json">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Auralis AI</title>
+
+<link rel="stylesheet" href="style.css">
+<link rel="manifest" href="manifest.json">
+
 <meta name="theme-color" content="#0b0f1a">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
 if ("serviceWorker" in navigator) {
-
-  window.addEventListener("load", () => {
-
-    navigator.serviceWorker
-      .register("./sw.js")
-      .then(() => {
-        console.log("SW registered");
-      })
-      .catch(err => {
-        console.log(err);
-      });
-  });
+    window.addEventListener("load", () => {
+        navigator.serviceWorker
+            .register("./sw.js")
+            .then(() => console.log("Service Worker Registered"))
+            .catch(console.error);
+    });
 }
 </script>
 
-  <!-- Chart.js for analytics -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
 
 <div class="app">
 
-  <!-- HEADER -->
-  <div class="header">
-    <h1>Auralis AI</h1>
+    <!-- ================= HEADER ================= -->
 
-    <p id="userInfo">Loading...</p>
-    <p id="planInfo">Plan: free</p>
+    <div class="header">
 
-    <!-- dynamic upgrade UI -->
-    <div id="upgradeBox"></div>
-  </div>
+        <h1>Auralis AI</h1>
 
-  <!-- ================= CHAT PAGE ================= -->
-  <div id="home" class="page">
+        <p id="userInfo">Loading...</p>
 
-    <div class="card">
+        <p id="planInfo">Plan: Free</p>
 
-      <!-- CHAT BOX -->
-      <div id="chatBox" class="chat-box"></div>
-
-      <p id="status"></p>
-
-      <!-- INPUT -->
-      <div class="input-bar">
-
-<!-- 🎤 Voice -->
-<button
-  class="mic-btn"
-  onmousedown="startHoldRecord()"
-  onmouseup="stopHoldRecord()"
-  title="Hold to speak">
-🎤
-</button>
-
-<!-- 📎 Upload file -->
-<button onclick="pickFile()">
-📎
-</button>
-
-<!-- 📷 Camera -->
-<button onclick="takePhoto()">
-📷
-</button>
-
-<input
-  type="file"
-  id="fileInput"
-  hidden
-  accept="image/*,.pdf,.txt"
-/>
-
-<input
-  id="textInput"
-  placeholder="Ask anything..."
-/>
-
-<button onclick="sendMessage()">
-➤
-</button>
-
-      </div>
-
-    </div>
-  </div>
-
-  <!-- ================= HISTORY ================= -->
-  <div id="history" class="page hidden">
-
-    <div class="card">
-      <h2>Chats</h2>
-
-      <button class="primary-btn" onclick="createNewChat()">➕ New Chat</button>
-
-      <div id="historyList"></div>
-    </div>
-
-  </div>
-
-  <!-- ================= ANALYTICS ================= -->
-  <div id="analytics" class="page hidden">
-
-    <div class="card">
-
-      <h2>📊 Analytics</h2>
-
-      <div id="analyticsBox">
-        <canvas id="usageChart"></canvas>
-      </div>
+        <div id="upgradeBox"></div>
 
     </div>
 
-  </div>
 
-  <!-- ================= SETTINGS ================= -->
-  <div id="settings" class="page hidden">
 
-    <div class="card">
+    <!-- ================= CHAT ================= -->
 
-      <h2>Settings</h2>
+    <div id="home" class="page">
 
-      <button onclick="logout()" class="danger-btn">Logout</button>
+        <div class="card">
 
-      <button 
-        class="upgrade-btn"
-        onclick="window.open('https://paystack.shop/pay/j-1x5anvvc')">
-        💳 Upgrade to Pro
-      </button>
+            <div id="chatBox" class="chat-box"></div>
+
+            <p id="status"></p>
+
+            <div class="input-bar">
+
+                <!-- Voice -->
+
+                <button
+                    class="mic-btn"
+                    onmousedown="startHoldRecord()"
+                    onmouseup="stopHoldRecord()"
+                    ontouchstart="startHoldRecord()"
+                    ontouchend="stopHoldRecord()"
+                    title="Voice">
+
+                    🎤
+
+                </button>
+
+                <!-- Upload -->
+
+                <button
+                    onclick="pickFile()"
+                    title="Upload">
+
+                    📎
+
+                </button>
+
+                <!-- Camera -->
+
+                <button
+                    onclick="takePhoto()"
+                    title="Camera">
+
+                    📷
+
+                </button>
+
+                <input
+                    type="file"
+                    id="fileInput"
+                    hidden
+                    accept="image/*,.pdf,.txt,.doc,.docx,.csv,.json,.js,.html,.css,.md"
+                >
+
+                <input
+                    id="textInput"
+                    placeholder="Ask anything..."
+                    autocomplete="off"
+                >
+
+                <button onclick="sendMessage()">
+
+                    ➤
+
+                </button>
+
+            </div>
+
+            <div id="selectedFile"></div>
+
+        </div>
 
     </div>
 
-  </div>
+
+
+    <!-- ================= HISTORY ================= -->
+
+    <div id="history" class="page hidden">
+
+        <div class="card">
+
+            <h2>Chats</h2>
+
+            <button
+                class="primary-btn"
+                onclick="createNewChat()">
+
+                ➕ New Chat
+
+            </button>
+
+            <div id="historyList"></div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ================= ANALYTICS ================= -->
+
+    <div id="analytics" class="page hidden">
+
+        <div class="card">
+
+            <h2>📊 Analytics</h2>
+
+            <div id="analyticsBox">
+
+                <canvas id="usageChart"></canvas>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- ================= SETTINGS ================= -->
+
+    <div id="settings" class="page hidden">
+
+        <div class="card">
+
+            <h2>Settings</h2>
+
+            <button
+                class="danger-btn"
+                onclick="logout()">
+
+                Logout
+
+            </button>
+
+            <button
+                class="upgrade-btn"
+                onclick="window.open('https://paystack.shop/pay/j-1x5anvvc')">
+
+                💳 Upgrade to Pro
+
+            </button>
+
+        </div>
+
+    </div>
 
 </div>
 
-<!-- ================= BOTTOM NAV ================= -->
+
+
+<!-- ================= NAVIGATION ================= -->
+
 <div class="nav">
 
-  <button onclick="openTab('home')">💬 Chat</button>
+    <button onclick="openTab('home')">
 
-  <button onclick="openTab('history')">📁 History</button>
+        💬 Chat
 
-  <button onclick="openTab('analytics')">📊 Stats</button>
+    </button>
 
-  <button onclick="openTab('settings')">⚙️ Settings</button>
+    <button onclick="openTab('history')">
+
+        📁 History
+
+    </button>
+
+    <button onclick="openTab('analytics')">
+
+        📊 Stats
+
+    </button>
+
+    <button onclick="openTab('settings')">
+
+        ⚙️ Settings
+
+    </button>
 
 </div>
 
-<script>
 
-if ("serviceWorker" in navigator) {
 
-  window.addEventListener("load", () => {
-
-    navigator.serviceWorker
-      .register("./sw.js")
-      .then(reg => console.log("SW Registered"))
-      .catch(err => console.log(err));
-
-  });
-
-}
-
-</script>
-
-<!-- ================= APP SCRIPT ================= -->
 <script type="module" src="app.js"></script>
 
 </body>

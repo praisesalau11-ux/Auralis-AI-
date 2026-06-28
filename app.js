@@ -11,7 +11,8 @@ import {
   getDocs,
   query,
   orderBy,
-  limit
+  limit,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 // ================= CONFIG =================
@@ -47,6 +48,7 @@ const analyticsBox = document.getElementById("analyticsBox");
 const fileInput = document.getElementById("fileInput");
 
 let uploadedFile = null;
+
 
 window.pickFile = () => {
   fileInput.click();
@@ -110,6 +112,38 @@ onAuthStateChanged(auth, async (user) => {
   currentUser = user;
 
   document.getElementById("userInfo").innerText = user.email;
+
+  // Load the user's plan
+  try {
+
+  const res = await fetch(`${SERVER}/user/${user.email}`);
+  const data = await res.json();
+
+  document.getElementById("planInfo").textContent =
+    `Plan: ${data.plan}`;
+
+  if (data.plan === "free") {
+
+    document.getElementById("upgradeBox").innerHTML = `
+      <button class="upgrade-btn"
+        onclick="window.open('https://paystack.shop/pay/j-1x5anvvc')">
+        💳 Upgrade to Pro
+      </button>
+    `;
+
+  } else {
+
+    document.getElementById("upgradeBox").innerHTML =
+      "✅ You are a Pro member";
+  }
+
+} catch (err) {
+
+  console.error("Failed to load user plan:", err);
+
+  document.getElementById("planInfo").textContent =
+    "Plan: Unknown";
+}
 
   try {
     await loadChats();
@@ -178,7 +212,7 @@ function updateProfile(message) {
   if (lower.includes("my name is")) {
 
     profile.name =
-      message.split("my name is")[1]?.trim() || profile.name;
+  message.split(/my name is/i)[1]?.trim() || profile.name;
   }
 
   if (lower.includes("i like")) {
@@ -186,10 +220,10 @@ function updateProfile(message) {
     profile.likes = profile.likes || [];
 
     const like =
-      message.split("I like")[1]?.trim();
+      message.split(/i like/i)[1]?.trim();
 
     if (like) {
-      profile.likes.push(like);
+      profile.likes.push(like.trim());
     }
   }
 
@@ -300,37 +334,33 @@ async function speak(text) {
 }
 
 // ================= REAL VOICE INPUT =================
-if ("webkitSpeechRecognition" in window) {
+const SpeechRecognition =
+  window.SpeechRecognition || window.webkitSpeechRecognition;
 
-  recognition = new webkitSpeechRecognition();
+if (SpeechRecognition) {
+
+  recognition = new SpeechRecognition();
 
   recognition.continuous = false;
   recognition.interimResults = true;
   recognition.lang = "en-US";
 
   recognition.onstart = () => {
-
     isRecording = true;
-
     status.textContent = "🎤 Listening...";
   };
 
   recognition.onend = () => {
-
     isRecording = false;
-
     status.textContent = "";
   };
 
   recognition.onerror = (event) => {
-
     console.log(event.error);
-
     status.textContent = "Mic error";
   };
 
   recognition.onresult = (event) => {
-
     let transcript = "";
 
     for (
@@ -338,16 +368,12 @@ if ("webkitSpeechRecognition" in window) {
       i < event.results.length;
       i++
     ) {
-
       transcript += event.results[i][0].transcript;
     }
 
     textInput.value = transcript;
 
-    const final =
-      event.results[event.results.length - 1].isFinal;
-
-    if (final) {
+    if (event.results[event.results.length - 1].isFinal) {
       sendMessage();
     }
   };
@@ -371,7 +397,8 @@ window.stopHoldRecord = function () {
 // ================= AI =================
 async function askAI(message, box) {
 
-  const key = message.toLowerCase();
+  const key =
+  currentUser.uid + ":" + message.toLowerCase();
 
   if (cache.has(key)) {
 
@@ -428,7 +455,7 @@ async function askAI(message, box) {
 
       if (done) break;
 
-      buffer += decoder.decode(value);
+      buffer += decoder.decode(value, { stream: true });
 
       if (buffer.length > 15) {
 
@@ -453,7 +480,7 @@ async function askAI(message, box) {
     cache.set(key, result);
 
     uploadedFile = null;
-
+   fileInput.value = "";
     return result;
 
   } catch (err) {
@@ -489,6 +516,8 @@ window.sendMessage = async function () {
     const reply = await askAI(text, aiBox);
 
     await saveHistory(text, reply);
+    memoryCache = "";
+   memoryTime = 0;
 
     trackUsage();
 
@@ -507,8 +536,6 @@ window.sendMessage = async function () {
 };
 
 // ================= SAVE HISTORY =================
-import { serverTimestamp } from "firebase/firestore";
-
 async function saveHistory(user, ai) {
   try {
     if (!currentChatId) {
@@ -540,6 +567,20 @@ async function saveHistory(user, ai) {
         createdAt: serverTimestamp()
       }
     );
+    
+    await addDoc(
+     collection(
+       db,
+       "users",
+        currentUser.uid,
+       "history"
+     ),
+     {
+       user,
+       ai,
+       createdAt: serverTimestamp()
+     }
+      );
 
   } catch (err) {
     console.error(err);
@@ -547,8 +588,6 @@ async function saveHistory(user, ai) {
 }
 
 // ================= CREATE CHAT =================
-import { serverTimestamp } from "firebase/firestore";
-
 window.createNewChat = async function () {
   try {
     const ref = await addDoc(
@@ -707,12 +746,3 @@ textInput.addEventListener("keydown", e => {
   }
 });
 
-// ================= SERVICE WORKER =================
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("/sw.js")
-      .then((reg) => console.log("SW Registered", reg))
-      .catch((err) => console.log("SW Error", err));
-  });
-}

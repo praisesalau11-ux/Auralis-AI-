@@ -14,9 +14,17 @@ const app = express();
 
 app.use(cors());
 
-app.use(express.json({
-  limit: "10mb"
-}));
+app.use((req, res, next) => {
+
+  if (req.originalUrl === "/paystack/webhook") {
+    next();
+  } else {
+    express.json({
+      limit: "10mb"
+    })(req, res, next);
+  }
+
+});
 
 // ================= CONFIG =================
 const PORT = process.env.PORT || 3000;
@@ -126,7 +134,7 @@ app.get("/", (req, res) => {
 });
 
 // ================= USER =================
-app.get("/user/:email", (req, res) => {
+app.get("/user/:email",res.setHeader("Cache-Control", "no-store"); (req, res) => {
 
   try {
 
@@ -170,7 +178,7 @@ app.post("/paystack/checkout", async (req, res) => {
         },
         body: JSON.stringify({
           email,
-          amount: 300000,
+          amount: 200000,
           callback_url:
             "https://auralis-ai.netlify.app/app.html"
         })
@@ -292,6 +300,16 @@ app.post("/chat", async (req, res) => {
      file
     } = req.body;
 
+    if (
+      file &&
+      file.data &&
+       file.data.length > 8_000_000
+     ) {
+   return res
+    .status(400)
+    .send("Image too large");
+   }
+
     if (!message) {
 
       return res
@@ -299,12 +317,13 @@ app.post("/chat", async (req, res) => {
         .send("No message");
     }
 
-    if (!email) {
+    if (!email || !email.includes("@")) {
 
       return res
-        .status(400)
-        .send("No email");
-    }
+     .status(400)
+     .send("Invalid email");
+
+}
 
     // ================= USER =================
     const user = getUser(email);
@@ -350,8 +369,9 @@ app.post("/chat", async (req, res) => {
 
       } catch (err) {
 
-        console.log(
-          "Brave search failed"
+        console.error(
+          "Brave search failed",
+          err
         );
       }
     }
@@ -441,9 +461,14 @@ ${message}
         chunk.choices?.[0]?.delta?.content || "";
 
       res.write(text);
+        }
+  
     }
-
+    finally  {
+  
     res.end();
+
+    }
 
   } catch (err) {
 
@@ -494,7 +519,11 @@ app.post("/title", async (req, res) => {
 });
 
 // ================= RESET USAGE =================
-app.post("/admin/reset", (req, res) => {
+app.post("/admin/reset",const key = req.headers["x-admin-key"];
+
+if (key !== process.env.ADMIN_KEY) {
+  return res.sendStatus(401);
+} (req, res) => {
 
   try {
 
