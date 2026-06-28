@@ -14,17 +14,9 @@ const app = express();
 
 app.use(cors());
 
-app.use((req, res, next) => {
-
-  if (req.originalUrl === "/paystack/webhook") {
-    next();
-  } else {
-    express.json({
-      limit: "10mb"
-    })(req, res, next);
-  }
-
-});
+app.use(express.json({
+  limit: "10mb"
+}));
 
 // ================= CONFIG =================
 const PORT = process.env.PORT || 3000;
@@ -130,13 +122,11 @@ function canUseAI(user) {
 // ================= HOME =================
 app.get("/", (req, res) => {
 
-  res.send("Auralis AI Server Running ðŸš€");
+  res.send("Auralis AI Server Running 🚀");
 });
 
 // ================= USER =================
 app.get("/user/:email", (req, res) => {
-
-  res.setHeader("Cache-Control", "no-store");
 
   try {
 
@@ -148,14 +138,12 @@ app.get("/user/:email", (req, res) => {
 
   } catch (err) {
 
-    console.error(err);
+    console.log(err);
 
     res.status(500).json({
       error: "User fetch failed"
     });
-
   }
-
 });
 
 // ================= PAYSTACK CHECKOUT =================
@@ -202,7 +190,7 @@ app.post("/paystack/checkout", async (req, res) => {
 
   } catch (err) {
 
-    console.error(err);
+    console.log(err);
 
     res.status(500).json({
       error: "Checkout failed"
@@ -232,14 +220,14 @@ app.post(
 
       if (hash !== signature) {
 
-        console.error("âŒ Invalid webhook signature");
+        console.log("❌ Invalid webhook signature");
 
         return res.sendStatus(401);
       }
 
       const event = JSON.parse(req.body.toString());
 
-      console.error("PAYSTACK EVENT:", event.event);
+      console.log("PAYSTACK EVENT:", event.event);
 
       // ================= SUCCESS =================
       if (
@@ -256,7 +244,7 @@ app.post(
         });
 
         console.log(
-          "âœ… PRO activated:",
+          "✅ PRO activated:",
           email
         );
       }
@@ -274,7 +262,7 @@ app.post(
         });
 
         console.log(
-          "âŒ Subscription disabled:",
+          "❌ Subscription disabled:",
           email
         );
       }
@@ -295,24 +283,13 @@ app.post("/chat", async (req, res) => {
 
   try {
 
-     const {
-     message,
-     email,
-     memory,
-     profile,
-     mode,
-     file
+    const {
+      message,
+      email,
+      memory,
+      profile,
+      mode
     } = req.body;
-
-    if (
-      file &&
-      file.data &&
-       file.data.length > 8_000_000
-     ) {
-   return res
-    .status(400)
-    .send("Image too large");
-   }
 
     if (!message) {
 
@@ -321,13 +298,12 @@ app.post("/chat", async (req, res) => {
         .send("No message");
     }
 
-    if (!email || !email.includes("@")) {
+    if (!email) {
 
       return res
-     .status(400)
-     .send("Invalid email");
-
-}
+        .status(400)
+        .send("No email");
+    }
 
     // ================= USER =================
     const user = getUser(email);
@@ -373,9 +349,8 @@ app.post("/chat", async (req, res) => {
 
       } catch (err) {
 
-        console.error(
-          "Brave search failed",
-          err
+        console.log(
+          "Brave search failed"
         );
       }
     }
@@ -392,13 +367,15 @@ app.post("/chat", async (req, res) => {
     );
 
     // ================= OPENAI =================
-    const completion = await openai.chat.completions.create({
-  model: "gpt-5.5",
-  stream: true,
-  messages: [
-    {
-      role: "system",
-      content: `
+    const completion =
+      await openai.chat.completions.create({
+        model: "gpt-5.5",
+        stream: true,
+        messages: [
+          {
+            role: "system",
+            content:
+              `
 You are Auralis AI, a modern AI assistant.
 
 Your goals:
@@ -417,16 +394,13 @@ Style:
 - Friendly and professional.
 - Direct and practical.
 - Avoid unnecessary filler.
-- Focus on solving problems quickly.
-      `
-    },
-
-    {
-      role: "user",
-      content: [
-        {
-          type: "text",
-          text: `
+- Focus on helping the user solve problems quickly.
+              `
+          },
+          {
+            role: "user",
+            content:
+              `
 MEMORY:
 ${memory || ""}
 
@@ -438,46 +412,27 @@ ${liveData}
 
 USER:
 ${message}
-          `
-        },
-
-        ...(file && file.type?.startsWith("image/")
-          ? [
-              {
-                type: "image_url",
-                image_url: {
-                  url: file.data
-                }
-              }
-            ]
-          : [])
-      ]
-    }
-  ]
-});
+              `
+          }
+        ]
+      });
 
     // ================= STREAM =================
-try {
+    for await (
+      const chunk of completion
+    ) {
 
-  // all your code...
+      const text =
+        chunk.choices?.[0]?.delta?.content || "";
 
-  for await (const chunk of completion) {
+      res.write(text);
+    }
 
-    const text =
-      chunk.choices?.[0]?.delta?.content || "";
-
-    res.write(text);
-  }
-
-} finally {
-
-  res.end();
-
-}
+    res.end();
 
   } catch (err) {
 
-    console.error("CHAT ERROR:", err);
+    console.log("CHAT ERROR:", err);
 
     res
       .status(500)
@@ -515,7 +470,7 @@ app.post("/title", async (req, res) => {
 
   } catch (err) {
 
-    console.error(err);
+    console.log(err);
 
     res.json({
       title: "New Chat"
@@ -526,17 +481,12 @@ app.post("/title", async (req, res) => {
 // ================= RESET USAGE =================
 app.post("/admin/reset", (req, res) => {
 
-  const key = req.headers["x-admin-key"];
-
-  if (key !== process.env.ADMIN_KEY) {
-    return res.sendStatus(401);
-  }
-
   try {
 
     const db = readDB();
 
     Object.keys(db.users).forEach(email => {
+
       db.users[email].usage = 0;
     });
 
@@ -547,15 +497,13 @@ app.post("/admin/reset", (req, res) => {
   } catch {
 
     res.status(500).send("Reset failed");
-
   }
-
 });
 
 // ================= START =================
 app.listen(PORT, () => {
 
   console.log(
-    `ðŸš€ Server running on port ${PORT}`
+    `🚀 Server running on port ${PORT}`
   );
 });
