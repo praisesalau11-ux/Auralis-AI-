@@ -1,8 +1,8 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import OpenAI from "openai";
 import fetch from "node-fetch";
+import OpenAI from "openai";
 import crypto from "crypto";
 import fs from "fs";
 
@@ -20,7 +20,7 @@ app.use((req, res, next) => {
     next();
   } else {
     express.json({
-      limit: "15mb"
+      limit: "10mb"
     })(req, res, next);
   }
 
@@ -37,20 +37,15 @@ const openai = new OpenAI({
 // ================= DATABASE =================
 const DB_FILE = "./db.json";
 
-// Create database if missing
+// create db if missing
 if (!fs.existsSync(DB_FILE)) {
 
   fs.writeFileSync(
     DB_FILE,
-    JSON.stringify(
-      {
-        users: {}
-      },
-      null,
-      2
-    )
+    JSON.stringify({
+      users: {}
+    }, null, 2)
   );
-
 }
 
 // ================= DB HELPERS =================
@@ -67,9 +62,7 @@ function readDB() {
     return {
       users: {}
     };
-
   }
-
 }
 
 function writeDB(data) {
@@ -78,7 +71,6 @@ function writeDB(data) {
     DB_FILE,
     JSON.stringify(data, null, 2)
   );
-
 }
 
 function getUser(email) {
@@ -88,25 +80,16 @@ function getUser(email) {
   if (!db.users[email]) {
 
     db.users[email] = {
-
-      email,
-
       plan: "free",
-
       usage: 0,
-
-      createdAt: Date.now(),
-
-      lastPayment: null
-
+      lastPayment: null,
+      createdAt: Date.now()
     };
 
     writeDB(db);
-
   }
 
   return db.users[email];
-
 }
 
 function updateUser(email, updates) {
@@ -116,67 +99,50 @@ function updateUser(email, updates) {
   if (!db.users[email]) {
 
     db.users[email] = {
-
-      email,
-
       plan: "free",
-
       usage: 0,
-
-      createdAt: Date.now(),
-
-      lastPayment: null
-
+      createdAt: Date.now()
     };
-
   }
 
   db.users[email] = {
-
     ...db.users[email],
-
     ...updates
-
   };
 
   writeDB(db);
 
   return db.users[email];
-
 }
 
 // ================= LIMIT SYSTEM =================
 function canUseAI(user) {
 
+  // unlimited
   if (user.plan === "pro") {
-
     return true;
-
   }
 
+  // free tier limit
   return user.usage < 50;
-
 }
 
 // ================= HOME =================
 app.get("/", (req, res) => {
 
-  res.send({
-    status: "online",
-    app: "Auralis AI",
-    version: "2.0"
-  });
-
+  res.send("Auralis AI Server Running ðŸš€");
 });
 
 // ================= USER =================
 app.get("/user/:email", (req, res) => {
 
+  res.setHeader("Cache-Control", "no-store");
+
   try {
 
-    res.setHeader("Cache-Control", "no-store");
+    const email = req.params.email;
 
-    const user = getUser(req.params.email);
+    const user = getUser(email);
 
     res.json(user);
 
@@ -185,62 +151,209 @@ app.get("/user/:email", (req, res) => {
     console.error(err);
 
     res.status(500).json({
-
-      error: "Unable to fetch user"
-
+      error: "User fetch failed"
     });
 
   }
 
 });
 
+// ================= PAYSTACK CHECKOUT =================
+app.post("/paystack/checkout", async (req, res) => {
+
+  try {
+
+    const { email } = req.body;
+
+    if (!email) {
+
+      return res.status(400).json({
+        error: "Email required"
+      });
+    }
+
+    const response = await fetch(
+      "https://api.paystack.co/transaction/initialize",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.PAYSTACK_SECRET}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          email,
+          amount: 200000,
+          callback_url:
+            "https://auralis-ai.netlify.app/app.html"
+        })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!data.status) {
+
+      return res.status(500).json(data);
+    }
+
+    res.json({
+      url: data.data.authorization_url
+    });
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      error: "Checkout failed"
+    });
+  }
+});
+
+// ================= PAYSTACK WEBHOOK =================
+app.post(
+  "/paystack/webhook",
+  express.raw({
+    type: "*/*"
+  }),
+  async (req, res) => {
+
+    try {
+
+      const secret = process.env.PAYSTACK_SECRET;
+
+      const hash = crypto
+        .createHmac("sha512", secret)
+        .update(req.body)
+        .digest("hex");
+
+      const signature =
+        req.headers["x-paystack-signature"];
+
+      if (hash !== signature) {
+
+        console.error("âŒ Invalid webhook signature");
+
+        return res.sendStatus(401);
+      }
+
+      const event = JSON.parse(req.body.toString());
+
+      console.error("PAYSTACK EVENT:", event.event);
+
+      // ================= SUCCESS =================
+      if (
+        event.event === "charge.success"
+      ) {
+
+        const email =
+          event.data.customer.email;
+
+        updateUser(email, {
+          plan: "pro",
+          usage: 0,
+          lastPayment: Date.now()
+        });
+
+        console.log(
+          "âœ… PRO activated:",
+          email
+        );
+      }
+
+      // ================= SUBSCRIPTION DISABLE =================
+      if (
+        event.event === "subscription.disable"
+      ) {
+
+        const email =
+          event.data.customer.email;
+
+        updateUser(email, {
+          plan: "free"
+        });
+
+        console.log(
+          "âŒ Subscription disabled:",
+          email
+        );
+      }
+
+      res.sendStatus(200);
+
+    } catch (err) {
+
+      console.log(err);
+
+      res.sendStatus(500);
+    }
+  }
+);
+
 // ================= CHAT =================
 app.post("/chat", async (req, res) => {
+
   try {
-    const {
-      message,
-      email,
-      memory = "",
-      profile = {},
-      mode,
-      file
+
+     const {
+     message,
+     email,
+     memory,
+     profile,
+     mode,
+     file
     } = req.body;
-
-    if (!message) {
-      return res.status(400).send("No message");
-    }
-
-    if (!email || !email.includes("@")) {
-      return res.status(400).send("Invalid email");
-    }
 
     if (
       file &&
       file.data &&
-      file.data.length > 8_000_000
-    ) {
-      return res.status(400).send("Image too large");
+       file.data.length > 8_000_000
+     ) {
+   return res
+    .status(400)
+    .send("Image too large");
+   }
+
+    if (!message) {
+
+      return res
+        .status(400)
+        .send("No message");
     }
 
-    // User
+    if (!email || !email.includes("@")) {
+
+      return res
+     .status(400)
+     .send("Invalid email");
+
+}
+
+    // ================= USER =================
     const user = getUser(email);
 
+    // ================= LIMIT =================
     if (!canUseAI(user)) {
-      return res.status(403).send("Upgrade to Pro");
+
+      return res
+        .status(403)
+        .send("Upgrade to Pro");
     }
 
     updateUser(email, {
       usage: user.usage + 1
     });
 
-    // Live Search
+    // ================= LIVE SEARCH =================
     let liveData = "";
 
     if (
       mode === "LIVE" &&
       process.env.BRAVE_API_KEY
     ) {
+
       try {
+
         const search = await fetch(
           `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(message)}`,
           {
@@ -251,107 +364,198 @@ app.post("/chat", async (req, res) => {
           }
         );
 
-        const data = await search.json();
+        const data =
+          await search.json();
 
         liveData = JSON.stringify(
-          data?.web?.results?.slice(0, 3) || []
+          data?.web?.results?.slice(0, 3)
         );
 
       } catch (err) {
-        console.error("Brave Search:", err);
+
+        console.error(
+          "Brave search failed",
+          err
+        );
       }
     }
 
-    // Stream headers
-    res.setHeader("Content-Type", "text/plain; charset=utf-8");
-    res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Connection", "keep-alive");
+    // ================= STREAM HEADERS =================
+    res.setHeader(
+      "Content-Type",
+      "text/plain"
+    );
 
-    // Build content
-    const content = [
-      {
-        type: "text",
-        text: `
+    res.setHeader(
+      "Transfer-Encoding",
+      "chunked"
+    );
+
+    // ================= OPENAI =================
+    const completion = await openai.chat.completions.create({
+  model: "gpt-5.5",
+  stream: true,
+  messages: [
+    {
+      role: "system",
+      content: `
+You are Auralis AI, a modern AI assistant.
+
+Your goals:
+- Give accurate answers.
+- Be concise unless the user asks for detail.
+- Explain step-by-step when teaching.
+- Admit uncertainty instead of guessing.
+- Use memory and profile information when relevant.
+- Be helpful for coding, business, education, research, and productivity.
+- When live search data is available, prioritize it.
+- Format code in proper code blocks.
+- Format lists clearly and professionally.
+- Maintain context across the conversation.
+
+Style:
+- Friendly and professional.
+- Direct and practical.
+- Avoid unnecessary filler.
+- Focus on solving problems quickly.
+      `
+    },
+
+    {
+      role: "user",
+      content: [
+        {
+          type: "text",
+          text: `
 MEMORY:
-${memory}
+${memory || ""}
 
 PROFILE:
-${JSON.stringify(profile)}
+${JSON.stringify(profile || {})}
 
 LIVE DATA:
 ${liveData}
 
 USER:
 ${message}
-`
-      }
-    ];
+          `
+        },
 
-    if (
-      file &&
-      file.type &&
-      file.type.startsWith("image/")
-    ) {
-      content.push({
-        type: "image_url",
-        image_url: {
-          url: file.data
-        }
-      });
+        ...(file && file.type?.startsWith("image/")
+          ? [
+              {
+                type: "image_url",
+                image_url: {
+                  url: file.data
+                }
+              }
+            ]
+          : [])
+      ]
     }
+  ]
+});
 
-    // OpenAI
-    const stream =
-      await openai.chat.completions.create({
-        model: "gpt-5.5",
-        stream: true,
-        messages: [
-          {
-            role: "system",
-            content: `
-You are Auralis AI.
+    // ================= STREAM =================
+try {
 
-Give clear, accurate answers.
+  // all your code...
 
-Use memory and profile if useful.
+  for await (const chunk of completion) {
 
-Be friendly.
+    const text =
+      chunk.choices?.[0]?.delta?.content || "";
 
-Do not guess.
+    res.write(text);
+  }
 
-When live data exists, prioritize it.
-`
-          },
-          {
-            role: "user",
-            content
-          }
-        ]
-      });
+} finally {
 
-    // Stream response
-    for await (const chunk of stream) {
+  res.end();
 
-      const text =
-        chunk.choices?.[0]?.delta?.content;
-
-      if (text) {
-        res.write(text);
-      }
-
-    }
-
-    res.end();
+}
 
   } catch (err) {
 
     console.error("CHAT ERROR:", err);
 
-    if (!res.headersSent) {
-      res.status(500).send("Server error");
-    } else {
-      res.end();
-    }
+    res
+      .status(500)
+      .send("Server error");
+  }
+});
+
+// ================= TITLE =================
+app.post("/title", async (req, res) => {
+
+  try {
+
+    const { message } = req.body;
+
+    const result =
+      await openai.chat.completions.create({
+        model: "gpt-5.5",
+        messages: [
+          {
+            role: "system",
+            content:
+              "Create a short title under 5 words."
+          },
+          {
+            role: "user",
+            content: message
+          }
+        ]
+      });
+
+    res.json({
+      title:
+        result.choices[0].message.content
+    });
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.json({
+      title: "New Chat"
+    });
+  }
+});
+
+// ================= RESET USAGE =================
+app.post("/admin/reset", (req, res) => {
+
+  const key = req.headers["x-admin-key"];
+
+  if (key !== process.env.ADMIN_KEY) {
+    return res.sendStatus(401);
+  }
+
+  try {
+
+    const db = readDB();
+
+    Object.keys(db.users).forEach(email => {
+      db.users[email].usage = 0;
+    });
+
+    writeDB(db);
+
+    res.send("Usage reset");
+
+  } catch {
+
+    res.status(500).send("Reset failed");
 
   }
+
+});
+
+// ================= START =================
+app.listen(PORT, () => {
+
+  console.log(
+    `ðŸš€ Server running on port ${PORT}`
+  );
 });
