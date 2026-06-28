@@ -494,9 +494,13 @@ async function askAI(message, box) {
 // ================= SEND =================
 window.sendMessage = async function () {
 
-  const text = textInput.value.trim();
+  const text = textInput.value;
 
-  if (!text) return;
+  console.log("Typed:", text);
+
+  if (!text.trim()) return;
+
+  textInput.blur();
 
   textInput.value = "";
 
@@ -736,10 +740,12 @@ window.logout = async function () {
 };
 
 // ================= ENTER =================
-textInput.addEventListener("keydown", e => {
+textInput.addEventListener("keydown", (e) => {
 
   if (e.key === "Enter") {
+    e.preventDefault();
     sendMessage();
   }
+
 });
 
