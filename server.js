@@ -202,7 +202,7 @@ app.post("/paystack/checkout", async (req, res) => {
 
   } catch (err) {
 
-    console.log(err);
+    console.error(err);
 
     res.status(500).json({
       error: "Checkout failed"
@@ -232,14 +232,14 @@ app.post(
 
       if (hash !== signature) {
 
-        console.log("❌ Invalid webhook signature");
+        console.error("❌ Invalid webhook signature");
 
         return res.sendStatus(401);
       }
 
       const event = JSON.parse(req.body.toString());
 
-      console.log("PAYSTACK EVENT:", event.event);
+      console.error("PAYSTACK EVENT:", event.event);
 
       // ================= SUCCESS =================
       if (
@@ -457,26 +457,27 @@ ${message}
 });
 
     // ================= STREAM =================
-    for await (
-      const chunk of completion
-    ) {
+try {
 
-      const text =
-        chunk.choices?.[0]?.delta?.content || "";
+  // all your code...
 
-      res.write(text);
-        }
-  
-    }
-    finally  {
-  
-    res.end();
+  for await (const chunk of completion) {
 
-    }
+    const text =
+      chunk.choices?.[0]?.delta?.content || "";
+
+    res.write(text);
+  }
+
+} finally {
+
+  res.end();
+
+}
 
   } catch (err) {
 
-    console.log("CHAT ERROR:", err);
+    console.error("CHAT ERROR:", err);
 
     res
       .status(500)
@@ -514,7 +515,7 @@ app.post("/title", async (req, res) => {
 
   } catch (err) {
 
-    console.log(err);
+    console.error(err);
 
     res.json({
       title: "New Chat"
@@ -523,18 +524,19 @@ app.post("/title", async (req, res) => {
 });
 
 // ================= RESET USAGE =================
-app.post("/admin/reset",const key = req.headers["x-admin-key"];
+app.post("/admin/reset", (req, res) => {
 
-if (key !== process.env.ADMIN_KEY) {
-  return res.sendStatus(401);
-} (req, res) => {
+  const key = req.headers["x-admin-key"];
+
+  if (key !== process.env.ADMIN_KEY) {
+    return res.sendStatus(401);
+  }
 
   try {
 
     const db = readDB();
 
     Object.keys(db.users).forEach(email => {
-
       db.users[email].usage = 0;
     });
 
@@ -545,7 +547,9 @@ if (key !== process.env.ADMIN_KEY) {
   } catch {
 
     res.status(500).send("Reset failed");
+
   }
+
 });
 
 // ================= START =================
