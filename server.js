@@ -361,11 +361,6 @@ app.post("/chat", async (req, res) => {
       "text/plain"
     );
 
-    res.setHeader(
-      "Transfer-Encoding",
-      "chunked"
-    );
-
     // ================= OPENAI =================
     const completion =
       await openai.chat.completions.create({
@@ -418,18 +413,21 @@ ${message}
       });
 
     // ================= STREAM =================
-    for await (
-      const chunk of completion
-    ) {
+    for await (const chunk of completion) {
 
-      const text =
-        chunk.choices?.[0]?.delta?.content || "";
+  const text =
+    chunk.choices?.[0]?.delta?.content || "";
 
-      res.write(text);
+  if (text) {
+    res.write(text);
+
+    if (typeof res.flush === "function") {
+      res.flush();
+    }
+     }
     }
 
-    res.end();
-
+     res.end();
   } catch (err) {
 
     console.log("CHAT ERROR:", err);
