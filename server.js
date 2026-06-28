@@ -184,7 +184,7 @@ app.post("/paystack/checkout", async (req, res) => {
           email,
           amount: 200000,
           callback_url:
-            "https://auralis-ai.netlify.app/app.html"
+            "https://auralis-ai-assistant.netlify.app/app.html"
         })
       }
     );
@@ -392,9 +392,9 @@ app.post("/chat", async (req, res) => {
     );
 
     // ================= OPENAI =================
-    const completion = await openai.chat.completions.create({
+    const completion = await openai.responses.completions.create({
   model: "gpt-5.5",
-  stream: true,
+  stream: false,
   messages: [
     {
       role: "system",
@@ -461,7 +461,7 @@ try {
 
   // all your code...
 
-  for await (const chunk of completion) {
+  res.send(completion.choices[0].message.content); {
 
     const text =
       chunk.choices?.[0]?.delta?.content || "";
@@ -493,7 +493,7 @@ app.post("/title", async (req, res) => {
     const { message } = req.body;
 
     const result =
-      await openai.chat.completions.create({
+      await openai.responses.completions.create({
         model: "gpt-5.5",
         messages: [
           {
