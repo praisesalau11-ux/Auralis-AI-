@@ -47,6 +47,11 @@ const historyList = document.getElementById("historyList");
 const analyticsBox = document.getElementById("analyticsBox");
 const fileInput = document.getElementById("fileInput");
 
+textInput.addEventListener("input", (e) => {
+    console.log("Value:", e.target.value);
+    console.log("Selection:", e.target.selectionStart, e.target.selectionEnd);
+});
+
 let uploadedFile = null;
 
 
